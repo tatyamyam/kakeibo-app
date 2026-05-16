@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { saveReceipt } from '../utils/storage.js';
+import { saveReceipt, validateReceipt } from '../utils/storage.js';
 
 export default function ReceiptUploader({ onSaved }) {
   const [preview, setPreview] = useState(null);
@@ -7,6 +7,7 @@ export default function ReceiptUploader({ onSaved }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [warnings, setWarnings] = useState([]);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef();
 
@@ -41,6 +42,7 @@ export default function ReceiptUploader({ onSaved }) {
 
       if (!json.success) throw new Error(json.error);
       setResult(json.data);
+      setWarnings(validateReceipt(json.data));
     } catch (e) {
       setError(e.message || '解析に失敗しました');
     } finally {
@@ -60,6 +62,7 @@ export default function ReceiptUploader({ onSaved }) {
     setResult(null);
     setPreview(null);
     setFile(null);
+    setWarnings([]);
     onSaved();
   };
 
@@ -98,13 +101,24 @@ export default function ReceiptUploader({ onSaved }) {
       {result && (
         <div className="result-card">
           <h3>{result.storeName} ({result.date})</h3>
+
+          {/* 検証警告（保存は可能） */}
+          {warnings.length > 0 && (
+            <ul className="warning-list">
+              {warnings.map((msg, i) => (
+                <li key={i}>⚠️ {msg}</li>
+              ))}
+            </ul>
+          )}
+
           <table className="items-table">
             <thead>
               <tr><th>商品名</th><th>カテゴリ</th><th>金額</th></tr>
             </thead>
             <tbody>
               {result.items?.map((item, i) => (
-                <tr key={i}>
+                // 負の金額の行を強調表示する
+                <tr key={i} className={Number(item.price) < 0 ? 'row-negative' : ''}>
                   <td>{item.name}</td>
                   <td>{item.category}</td>
                   <td className="text-right">¥{Number(item.price).toLocaleString()}</td>
@@ -120,7 +134,7 @@ export default function ReceiptUploader({ onSaved }) {
           </table>
           <div className="result-actions">
             <button className="btn-primary" onClick={handleSave}>💾 保存する</button>
-            <button className="btn-secondary" onClick={() => { setResult(null); setPreview(null); setFile(null); }}>
+            <button className="btn-secondary" onClick={() => { setResult(null); setPreview(null); setFile(null); setWarnings([]); }}>
               キャンセル
             </button>
           </div>

@@ -33,3 +33,25 @@ export const deleteReceipt = (id) => {
   const receipts = getReceipts().filter(r => r.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(receipts));
 };
+
+// 解析結果の検証を行い、警告メッセージの配列を返す
+export const validateReceipt = (data) => {
+  const warnings = [];
+
+  // 負の金額を持つ商品を収集する
+  const negativeItems = data.items?.filter(item => Number(item.price) < 0) ?? [];
+  if (negativeItems.length > 0) {
+    const names = negativeItems.map(item => item.name).join('、');
+    warnings.push(`金額が負の値の商品があります：${names}`);
+  }
+
+  // 同一日付・合計金額のレシートが既に存在するか確認する
+  const existing = getReceipts().find(
+    r => r.date === data.date && Number(r.total) === Number(data.total)
+  );
+  if (existing) {
+    warnings.push(`同じ日付（${data.date}）・合計金額（¥${Number(data.total).toLocaleString()}）のレシートが既に登録されています。`);
+  }
+
+  return warnings;
+};
